@@ -37,14 +37,14 @@ static void replaceText(char *text)
             {
                 if (i == 3 || !isAllowedChar(text[i-4]))
                 {
-                    if ((i == len-1 && text[i+1] == ':') || !isAllowedChar(text[i+2]))
+                    if (text[i+1] == ':' && (i == len-1 || !isAllowedChar(text[i+1])))
                     {
                         // http:
                         text[i-3] = 'm';
                         printf("---->  %zu\n", i);
                         
                     }
-                    else if (i < len-1 && text[i+1] == 's' && text[i+2] == ':' && (i == len-3 || !isAllowedChar(text[i+3])))
+                    else if (i < len-1 && text[i+1] == 's' && text[i+2] == ':' && (i == len-2 || !isAllowedChar(text[i+2])))
                     {
                         // https:
                         text[i-3] = 'm';
@@ -60,9 +60,10 @@ static void replaceText(char *text)
 
 - (void)webView:(WKWebView *)webView startURLSchemeTask:(id <WKURLSchemeTask>)urlSchemeTask
 {
+    NSMutableURLRequest *request = [urlSchemeTask.request mutableCopy];
+    
     if (_urlSchemeTasks == nil) _urlSchemeTasks = [NSMutableArray array];
     [_urlSchemeTasks addObject:urlSchemeTask];
-    NSMutableURLRequest *request = [urlSchemeTask.request mutableCopy];
     
     NSURLComponents *components = [NSURLComponents componentsWithURL:request.URL resolvingAgainstBaseURL:NO];
     if ([components.scheme isEqualToString:customMTTP])
@@ -86,35 +87,36 @@ static void replaceText(char *text)
             }
             else
             {
-                if ([response isKindOfClass:[NSHTTPURLResponse class]])
+                NSString *contentType = response.MIMEType;
+                
+//                printf("---->  %s\n", contentType.UTF8String);
+                
+                if ([contentType hasPrefix:@"text/html"] || [contentType hasPrefix:@"application/javascript"] || [contentType hasPrefix:@"text/css"])
                 {
-                    NSString *contentType = [(NSHTTPURLResponse *)response allHeaderFields][@"content-type"];
-                    if ([contentType hasPrefix:@"text/html"] || [contentType hasPrefix:@"application/javascript"] || [contentType hasPrefix:@"text/css"])
-                    {
-                        printf("---->  %s\n", request.URL.absoluteString.UTF8String);
-                        char end = 0;
-                        NSMutableData *temp = [data mutableCopy];
-                        [temp appendBytes:&end length:sizeof(end)];
-                        char *body = (char*)[temp mutableBytes];
-                        replaceText(body);
-                        [temp setLength:temp.length-sizeof(end)];
-                        data = temp;
-                        
-                        [data writeToFile:[NSString stringWithFormat:@"/Users/liyang/Desktop/ithome/%@.txt", [self MD5WithStr:request.URL.absoluteString]]  atomically:YES];
-                        printf("---->  %s\n", [self MD5WithStr:request.URL.absoluteString].UTF8String);
-                        
-                        printf("\n\n\n\n\n\n\n");
-                    }
+                    printf("---->  %s\n", request.URL.absoluteString.UTF8String);
+                    char end = 0;
+                    NSMutableData *temp = [data mutableCopy];
+                    [temp appendBytes:&end length:sizeof(end)];
+                    char *body = (char*)[temp mutableBytes];
+                    replaceText(body);
+                    [temp setLength:temp.length-sizeof(end)];
+                    data = temp;
+                    
+                    [data writeToFile:[NSString stringWithFormat:@"/Users/liyang/Desktop/ithome/%@.txt", [self MD5WithStr:request.URL.absoluteString]]  atomically:YES];
+                    printf("---->  %s\n", [self MD5WithStr:request.URL.absoluteString].UTF8String);
+                    
+                    printf("\n\n\n\n\n\n\n");
                 }
                 
                 @try {
                     [urlSchemeTask didReceiveResponse:response];
                     
                     [urlSchemeTask didReceiveData:data];
-                } @catch (NSException *exception) {
-                    [urlSchemeTask didFailWithError:error];
-                } @finally {
+                    
                     [urlSchemeTask didFinish];
+                } @catch (NSException *exception) {
+                } @finally {
+                    
                 }
             }
             [self->_urlSchemeTasks removeObjectIdenticalTo:urlSchemeTask];
