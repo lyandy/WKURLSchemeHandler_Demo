@@ -18,7 +18,8 @@ NSString * const customMTTPS = @"mttps";
     NSMutableArray<id <WKURLSchemeTask>> *_urlSchemeTasks;
 }
 
-static bool isLiyang(char ch) {
+static bool isLiyang(char ch)
+{
     return (ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'));
 }
 
@@ -32,11 +33,11 @@ static void replaceText(char* text) {
         for (size_t i = 3; i < len; i++) {
             if (test == http) {
                 if (i == 3 || !isLiyang(text[i-4])) {
-                    if (i == len-1 || !isLiyang(text[i+1])) {
+                    if ((i == len-1 && text[i+1] == ':') || !isLiyang(text[i+2])) {
                         text[i-3] = 'm';
                         printf("iiii %d\n", i);
                         // http
-                    } else if (i < len-1 && text[i+1] == 's' && (i == len-2 || !isLiyang(text[i+2]))) {
+                    } else if (i < len-1 && text[i+1] == 's' && text[i+2] == ':' && (i == len-3 || !isLiyang(text[i+3]))) {
                         text[i-3] = 'm';
                         // https
                         printf("iiii %d\n", i);
